@@ -3,7 +3,7 @@ class ActiveRecord::Base
     def cassandra_connection(config)
       begin
         require 'jdbc/cassandra'
-        ::Jdbc::MySQL.load_driver(:require) if defined?(::Jdbc::Cassandra.load_driver)
+        ::Jdbc::Cassandra.load_driver(:require) if defined?(::Jdbc::Cassandra.load_driver)
       rescue LoadError # assuming driver.jar is on the class-path
       end
 

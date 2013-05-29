@@ -1,3 +1,5 @@
+class ActiveRecord::ConnectionAdapters::CassandraJdbcConnection < ActiveRecord::ConnectionAdapters::JdbcConnection; end
+
 module ArJdbc
   module Cassandra
     def self.extended(adapter)

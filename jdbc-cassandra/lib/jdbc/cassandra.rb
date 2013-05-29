@@ -3,9 +3,6 @@ require 'jdbc/cassandra/version'
 
 module Jdbc
   module Cassandra
-    DRIVER_VERSION = '1.2.5'
-    VERSION = DRIVER_VERSION + ''
-
     def self.driver_jar
       "cassandra-jdbc-#{DRIVER_VERSION}.jar"
     end

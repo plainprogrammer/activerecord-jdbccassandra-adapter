@@ -13,8 +13,12 @@ Gem::Specification.new do |s|
       "Rakefile",
       "README.md",
       "LICENSE.txt",
+      "lib/activerecord-jdbccassandra-adapter.rb",
       "lib/active_record/connection_adapters/jdbccassandra_adapter.rb",
-      "lib/arjdbc/cassandra/version"
+      "lib/arjdbc/cassandra.rb",
+      "lib/arjdbc/cassandra/version.rb",
+      "lib/arjdbc/cassandra/adapter.rb",
+      "lib/arjdbc/cassandra/connection_methods.rb"
   ]
   s.homepage = %q{https://github.com/plainprogrammer/activerecord-jdbccassandra-adapter}
   s.require_paths = ["lib"]

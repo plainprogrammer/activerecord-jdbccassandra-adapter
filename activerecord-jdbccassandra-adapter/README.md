@@ -1,7 +1,7 @@
-= activerecord-jdbccassandra-adapter
+# activerecord-jdbccassandra-adapter
 
 * https://github.com/plainprogrammer/activerecord-jdbccassandra-adapter/
 
-== DESCRIPTION:
+## DESCRIPTION:
 
 This is an ActiveRecord driver for Cassandra using JDBC running under JRuby.
