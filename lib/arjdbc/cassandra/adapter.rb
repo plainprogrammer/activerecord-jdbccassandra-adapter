@@ -6,7 +6,7 @@ require 'arjdbc/cassandra/explain_support'
 
 module ArJdbc
   module Cassandra
-    
+
     def configure_connection
       variables = config[:variables] || {}
       # By default, Cassandra 'where id is null' selects the last inserted id. Turn this off.
@@ -42,7 +42,7 @@ module ArJdbc
       # ...and send them all in one query
       execute("SET #{encoding} #{variable_assignments}", :skip_logging)
     end
-    
+
     def self.column_selector
       [ /cassandra/i, lambda { |_,column| column.extend(::ArJdbc::Cassandra::Column) } ]
     end
@@ -54,19 +54,19 @@ module ArJdbc
     def strict_mode? # strict_mode is default since AR 4.0
       config.key?(:strict) ? config[:strict] : ::ActiveRecord::VERSION::MAJOR > 3
     end
-    
+
     @@emulate_booleans = true
-    
+
     # Boolean emulation can be disabled using (or using the adapter method) :
-    # 
+    #
     #   ArJdbc::Cassandra.emulate_booleans = false
-    # 
+    #
     # @see ActiveRecord::ConnectionAdapters::CassandraAdapter#emulate_booleans
     def self.emulate_booleans; @@emulate_booleans; end
     def self.emulate_booleans=(emulate); @@emulate_booleans = emulate; end
-    
+
     module Column
-      
+
       def extract_default(default)
         if sql_type =~ /blob/i || type == :text
           if default.blank?
@@ -87,7 +87,7 @@ module ArJdbc
       end
 
       def simplified_type(field_type)
-        if adapter.respond_to?(:emulate_booleans) && adapter.emulate_booleans 
+        if adapter.respond_to?(:emulate_booleans) && adapter.emulate_booleans
           return :boolean if field_type.downcase.index('tinyint(1)')
         end
 
@@ -99,7 +99,7 @@ module ArJdbc
           super
         end
       end
-      
+
       def extract_limit(sql_type)
         case sql_type
         when /blob|text/i
@@ -137,14 +137,14 @@ module ArJdbc
       def missing_default_forged_as_empty_string?(default)
         type != :string && !null && default == ''
       end
-      
+
       def adapter; end
       private :adapter
-      
+
     end
 
     ColumnExtensions = Column # :nodoc: backwards-compatibility
-    
+
     NATIVE_DATABASE_TYPES = {
       :primary_key => "int(11) DEFAULT NULL auto_increment PRIMARY KEY",
       :string => { :name => "varchar", :limit => 255 },
@@ -163,7 +163,7 @@ module ArJdbc
     def native_database_types
       NATIVE_DATABASE_TYPES
     end
-    
+
     def modify_types(types)
       types[:primary_key] = "int(11) DEFAULT NULL auto_increment PRIMARY KEY"
       types[:integer] = { :name => 'int', :limit => 4 }
@@ -174,7 +174,7 @@ module ArJdbc
     end
 
     ADAPTER_NAME = 'Cassandra'.freeze
-    
+
     def adapter_name #:nodoc:
       ADAPTER_NAME
     end
@@ -182,7 +182,6 @@ module ArJdbc
     def self.arel2_visitors(config)
       {
         'cassandra' => ::Arel::Visitors::Cassandra,
-        'cassandra2' => ::Arel::Visitors::Cassandra,
         'jdbccassandra' => ::Arel::Visitors::Cassandra
       }
     end
@@ -191,12 +190,12 @@ module ArJdbc
       visitor = ::Arel::Visitors::Cassandra
       ( prepared_statements? ? visitor : bind_substitution(visitor) ).new(self)
     end if defined? ::Arel::Visitors::Cassandra
-    
+
     # @see #bind_substitution
     class BindSubstitution < Arel::Visitors::Cassandra # :nodoc:
       include Arel::Visitors::BindVisitor
     end if defined? Arel::Visitors::BindVisitor
-    
+
     def case_sensitive_equality_operator
       "= BINARY"
     end
@@ -214,7 +213,7 @@ module ArJdbc
     def quote(value, column = nil)
       return value.quoted_id if value.respond_to?(:quoted_id)
       return value.to_s if column && column.type == :primary_key
-      
+
       if value.kind_of?(String) && column && column.type == :binary && column.class.respond_to?(:string_to_binary)
         "x'#{column.class.string_to_binary(value).unpack("H*")[0]}'"
       elsif value.kind_of?(BigDecimal)
@@ -223,15 +222,15 @@ module ArJdbc
         super
       end
     end
-    
+
     def quote_column_name(name) # :nodoc:
       "`#{name.to_s.gsub('`', '``')}`"
     end
-    
+
     def quote_table_name(name) # :nodoc:
       quote_column_name(name).gsub('.', '`.`')
     end
-    
+
     # Returns true, since this connection adapter supports migrations.
     def supports_migrations?
       true
@@ -258,11 +257,11 @@ module ArJdbc
     def supports_transaction_isolation? # :nodoc:
       version[0] && version[0] >= 5
     end
-    
+
     def supports_views? # :nodoc:
       version[0] && version[0] >= 5
     end
-    
+
     def supports_savepoints? # :nodoc:
       true
     end
@@ -270,7 +269,7 @@ module ArJdbc
     def supports_transaction_isolation?(level = nil)
       version[0] >= 5 # Cassandra 5+
     end
-    
+
     def create_savepoint
       execute("SAVEPOINT #{current_savepoint_name}")
     end
@@ -294,26 +293,26 @@ module ArJdbc
     end
 
     # DATABASE STATEMENTS ======================================
-    
+
     def exec_insert(sql, name, binds, pk = nil, sequence_name = nil) # :nodoc:
       execute sql, name, binds
     end
-    
+
     def exec_update(sql, name, binds) # :nodoc:
       execute sql, name, binds
     end
-    
+
     def exec_delete(sql, name, binds) # :nodoc:
       execute sql, name, binds
     end
-    
+
     # Make it public just like native Cassandra adapter does.
     def update_sql(sql, name = nil) # :nodoc:
       super
     end
-    
+
     # SCHEMA STATEMENTS ========================================
-    
+
     def structure_dump # :nodoc:
       if supports_views?
         sql = "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'"
@@ -340,7 +339,7 @@ module ArJdbc
       #pk_and_sequence && pk_and_sequence.first
       @connection.primary_keys(table).first
     end
-    
+
     # Returns a table's primary key and belonging sequence.
     # @note not used only here for potential compatibility with AR's adapter.
     def pk_and_sequence_for(table)
@@ -352,16 +351,16 @@ module ArJdbc
         return nil
       end
     end
-    
+
     IndexDefinition = ::ActiveRecord::ConnectionAdapters::IndexDefinition
-    
+
     if ::ActiveRecord::VERSION::MAJOR > 3
-      
+
     INDEX_TYPES = [ :fulltext, :spatial ]
     INDEX_USINGS = [ :btree, :hash ]
-    
+
     end
-      
+
     # Returns an array of indexes for the given table.
     def indexes(table_name, name = nil) # :nodoc:
       indexes = []
@@ -372,7 +371,7 @@ module ArJdbc
         if current_index != key_name
           next if key_name == 'PRIMARY' # skip the primary key
           current_index = key_name
-          indexes <<  
+          indexes <<
             if self.class.const_defined?(:INDEX_TYPES) # AR 4.0
               cassandra_index_type = row['Index_type'].downcase.to_sym
               index_type = INDEX_TYPES.include?(cassandra_index_type) ? cassandra_index_type : nil
@@ -388,7 +387,7 @@ module ArJdbc
       end
       indexes
     end
-    
+
     def columns(table_name, name = nil) # :nodoc:
       sql = "SHOW FIELDS FROM #{quote_table_name(table_name)}"
       column = ::ActiveRecord::ConnectionAdapters::CassandraAdapter::Column
@@ -428,12 +427,12 @@ module ArJdbc
       execute "RENAME TABLE #{quote_table_name(table_name)} TO #{quote_table_name(new_name)}"
       rename_table_indexes(table_name, new_name) if respond_to?(:rename_table_indexes) # AR-4.0 SchemaStatements
     end
-    
+
     def remove_index!(table_name, index_name) #:nodoc:
       # missing table_name quoting in AR-2.3
       execute "DROP INDEX #{quote_column_name(index_name)} ON #{quote_table_name(table_name)}"
     end
-    
+
     def add_column(table_name, column_name, type, options = {})
       add_column_sql = "ALTER TABLE #{quote_table_name(table_name)} ADD #{quote_column_name(column_name)} #{type_to_sql(type, options[:limit], options[:precision], options[:scale])}"
       add_column_options!(add_column_sql, options)
@@ -486,7 +485,7 @@ module ArJdbc
       execute(rename_column_sql)
       rename_column_indexes(table_name, column_name, new_column_name) if respond_to?(:rename_column_indexes) # AR-4.0 SchemaStatements
     end
-    
+
     def add_limit_offset!(sql, options) #:nodoc:
       limit, offset = options[:limit], options[:offset]
       if limit && offset
@@ -578,7 +577,7 @@ module ArJdbc
     def empty_insert_statement_value
       "VALUES ()"
     end
-    
+
     protected
     def quoted_columns_for_index(column_names, options = {})
       length = options[:length] if options.is_a?(Hash)
@@ -607,18 +606,18 @@ module ArJdbc
     end
 
     private
-    
+
     def column_for(table_name, column_name)
       unless column = columns(table_name).find { |c| c.name == column_name.to_s }
         raise "No such column: #{table_name}.#{column_name}"
       end
       column
     end
-    
+
     def show_create_table(table)
       select_one("SHOW CREATE TABLE #{quote_table_name(table)}")
     end
-    
+
     def version
       return @version ||= begin
         version = []
@@ -633,7 +632,7 @@ module ArJdbc
         version
       end
     end
-    
+
   end
 end
 
@@ -641,19 +640,19 @@ module ActiveRecord
   module ConnectionAdapters
     # Remove any vestiges of core/Ruby Cassandra adapter
     remove_const(:CassandraAdapter) if const_defined?(:CassandraAdapter)
-    
+
     class CassandraAdapter < JdbcAdapter
       include ::ArJdbc::Cassandra
       include ::ArJdbc::Cassandra::ExplainSupport
-      
-      # By default, the CassandraAdapter will consider all columns of type 
+
+      # By default, the CassandraAdapter will consider all columns of type
       # <tt>tinyint(1)</tt> as boolean. If you wish to disable this :
       #
       #   ActiveRecord::ConnectionAdapters::Cassandra[2]Adapter.emulate_booleans = false
       #
       def self.emulate_booleans; ::ArJdbc::Cassandra.emulate_booleans; end
       def self.emulate_booleans=(emulate); ::ArJdbc::Cassandra.emulate_booleans = emulate; end
-      
+
       class Column < JdbcColumn
         include ::ArJdbc::Cassandra::Column
 
@@ -669,9 +668,9 @@ module ActiveRecord
         def adapter
           CassandraAdapter
         end
-        
+
       end
-      
+
       def initialize(*args)
         super
         # configure_connection happens in super
@@ -706,9 +705,9 @@ module ActiveRecord
         end
         quoted
       end
-      
+
     end
-    
+
     if ActiveRecord::VERSION::MAJOR < 3 ||
         ( ActiveRecord::VERSION::MAJOR == 3 && ActiveRecord::VERSION::MINOR <= 1 )
       remove_const(:CassandraColumn) if const_defined?(:CassandraColumn)
@@ -724,6 +723,6 @@ module ActiveRecord
         Cassandra2Column = CassandraAdapter::Column
       end
     end
-    
+
   end
 end

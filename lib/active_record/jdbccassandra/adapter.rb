@@ -1,7 +1,7 @@
 require "activerecord/jdbccassandra/adapter/version"
 
-module Activerecord
-  module Jdbccassandra
+module ActiveRecord
+  module JdbcCassandra
     module Adapter
       # Your code goes here...
     end
