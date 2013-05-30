@@ -74,10 +74,6 @@ module ArJdbc
       }
     end
 
-    #def case_sensitive_equality_operator
-    #  "= BINARY"
-    #end
-
     def case_sensitive_modifier(node)
       Arel::Nodes::Bin.new(node)
     end
@@ -86,30 +82,6 @@ module ArJdbc
       where_sql
     end
 
-    # QUOTING ==================================================
-
-    #def quote(value, column = nil)
-    #  return value.quoted_id if value.respond_to?(:quoted_id)
-    #  return value.to_s if column && column.type == :primary_key
-    #
-    #  if value.kind_of?(String) && column && column.type == :binary && column.class.respond_to?(:string_to_binary)
-    #    "x'#{column.class.string_to_binary(value).unpack("H*")[0]}'"
-    #  elsif value.kind_of?(BigDecimal)
-    #    value.to_s("F")
-    #  else
-    #    super
-    #  end
-    #end
-
-    #def quote_column_name(name) # :nodoc:
-    #  "`#{name.to_s.gsub('`', '``')}`"
-    #end
-
-    #def quote_table_name(name) # :nodoc:
-    #  quote_column_name(name).gsub('.', '`.`')
-    #end
-
-    # Returns true, since this connection adapter supports migrations.
     def supports_migrations?
       false
     end
@@ -138,16 +110,6 @@ module ArJdbc
       false
     end
 
-    #def disable_referential_integrity # :nodoc:
-    #  fk_checks = select_value("SELECT @@FOREIGN_KEY_CHECKS")
-    #  begin
-    #    update("SET FOREIGN_KEY_CHECKS = 0")
-    #    yield
-    #  ensure
-    #    update("SET FOREIGN_KEY_CHECKS = #{fk_checks}")
-    #  end
-    #end
-
     # DATABASE STATEMENTS ======================================
 
     def exec_insert(sql, name, binds)
@@ -156,88 +118,44 @@ module ArJdbc
     alias :exec_update :exec_insert
     alias :exec_delete :exec_insert
 
-    def update_sql(sql, name = nil) # :nodoc:
-      super
-    end
-
     # SCHEMA STATEMENTS ========================================
 
     def structure_dump #:nodoc:
       execute('DESCRIBE SCHEMA')
     end
 
-    # based on:
-    # https://github.com/rails/rails/blob/3-1-stable/activerecord/lib/active_record/connection_adapters/mysql_adapter.rb#L756
-    # Required for passing rails column caching tests
-    # Returns a table's primary key and belonging sequence.
-    #def pk_and_sequence_for(table) #:nodoc:
-    #  keys = []
-    #  result = execute("SHOW INDEX FROM #{quote_table_name(table)} WHERE Key_name = 'PRIMARY'", 'SCHEMA')
-    #  result.each do |h|
-    #    keys << h["Column_name"]
-    #  end
-    #  keys.length == 1 ? [keys.first, nil] : nil
-    #end
-
-    # based on:
-    # https://github.com/rails/rails/blob/3-1-stable/activerecord/lib/active_record/connection_adapters/mysql_adapter.rb#L647
-    # Returns an array of indexes for the given table.
-    #def indexes(table_name, name = nil)#:nodoc:
-    #  indexes = []
-    #  current_index = nil
-    #  result = execute("SHOW KEYS FROM #{quote_table_name(table_name)}", name)
-    #  result.each do |row|
-    #    key_name = row["Key_name"]
-    #    if current_index != key_name
-    #      next if key_name == "PRIMARY" # skip the primary key
-    #      current_index = key_name
-    #      indexes << ::ActiveRecord::ConnectionAdapters::IndexDefinition.new(
-    #          row["Table"], key_name, row["Non_unique"] == 0, [], [])
-    #    end
-    #
-    #    indexes.last.columns << row["Column_name"]
-    #    indexes.last.lengths << row["Sub_part"]
-    #  end
-    #  indexes
-    #end
-
-    def jdbc_columns(table_name, name = nil)#:nodoc:
-      sql = "DESCRIBE COLUMNFAMILY #{quote_table_name(table_name)}"
-      execute(sql, 'SCHEMA').map do |field|
-        ::ActiveRecord::ConnectionAdapters::CassandraColumn.new(field["Field"], field["Default"], field["Type"], field["Null"] == "YES")
-      end
+    def recreate_database(name, options = {}) #:nodoc:
+      drop_database(name)
+      create_database(name, options)
     end
 
-    # Returns just a table's primary key
-    #def primary_key(table)
-    #  pk_and_sequence = pk_and_sequence_for(table)
-    #  pk_and_sequence && pk_and_sequence.first
-    #end
+    def create_database(name, options = {}) #:nodoc:
+      query = "CREATE KEYSPACE #{name} WITH strategy_class = #{options[:strategy_class] || 'SimpleStrategy'}"
 
-    #def recreate_database(name, options = {}) #:nodoc:
-    #  drop_database(name)
-    #  create_database(name, options)
-    #end
+      if options[:strategy_options]
+        if options[:strategy_options].is_a?(Array)
+          options[:strategy_options].each do |strategy_option|
+            query += " AND strategy_options:#{strategy_option}"
+          end
+        else
+          query += " AND strategy_options:#{options[:strategy_options]}"
+        end
+      end
 
-    #def create_database(name, options = {}) #:nodoc:
-    #  if options[:collation]
-    #    execute "CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}` COLLATE `#{options[:collation]}`"
-    #  else
-    #    execute "CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}`"
-    #  end
-    #end
+      execute query
+    end
 
-    #def drop_database(name) #:nodoc:
-    #  execute "DROP DATABASE IF EXISTS `#{name}`"
-    #end
-
-    #def current_database
-    #  select_one("SELECT DATABASE() as db")["db"]
-    #end
+    def drop_database(name) #:nodoc:
+      execute "DROP KEYSPACE #{name}"
+    end
 
     #def create_table(name, options = {}) #:nodoc:
     #  super(name, {:options => "ENGINE=InnoDB DEFAULT CHARSET=utf8"}.merge(options))
     #end
+
+    def drop_table(name) #:nodoc:
+      execute "DROP TABLE #{name}"
+    end
 
     #def rename_table(name, new_name)
     #  execute "RENAME TABLE #{quote_table_name(name)} TO #{quote_table_name(new_name)}"
@@ -313,43 +231,6 @@ module ArJdbc
     #  sql
     #end
 
-    # Taken from: https://github.com/gfmurphy/rails/blob/3-1-stable/activerecord/lib/active_record/connection_adapters/mysql_adapter.rb#L540
-    #
-    # In the simple case, MySQL allows us to place JOINs directly into the UPDATE
-    # query. However, this does not allow for LIMIT, OFFSET and ORDER. To support
-    # these, we must use a subquery. However, MySQL is too stupid to create a
-    # temporary table for this automatically, so we have to give it some prompting
-    # in the form of a subsubquery. Ugh!
-    #def join_to_update(update, select) #:nodoc:
-    #  if select.limit || select.offset || select.orders.any?
-    #    subsubselect = select.clone
-    #    subsubselect.projections = [update.key]
-    #
-    #    subselect = Arel::SelectManager.new(select.engine)
-    #    subselect.project Arel.sql(update.key.name)
-    #    subselect.from subsubselect.as('__active_record_temp')
-    #
-    #    update.where update.key.in(subselect)
-    #  else
-    #    update.table select.source
-    #    update.wheres = select.constraints
-    #  end
-    #end
-
-    #def show_variable(var)
-    #  res = execute("show variables like '#{var}'")
-    #  result_row = res.detect {|row| row["Variable_name"] == var }
-    #  result_row && result_row["Value"]
-    #end
-
-    #def charset
-    #  show_variable("character_set_database")
-    #end
-
-    #def collation
-    #  show_variable("collation_database")
-    #end
-
     #def type_to_sql(type, limit = nil, precision = nil, scale = nil)
     #  case type.to_s
     #    when 'binary'
@@ -388,62 +269,6 @@ module ArJdbc
     #    sql << " AFTER #{quote_column_name(options[:after])}"
     #  end
     #end
-
-    protected
-
-    #def quoted_columns_for_index(column_names, options = {})
-    #  length = options[:length] if options.is_a?(Hash)
-    #
-    #  case length
-    #    when Hash
-    #      column_names.map { |name| length[name] ? "#{quote_column_name(name)}(#{length[name]})" : quote_column_name(name) }
-    #    when Fixnum
-    #      column_names.map { |name| "#{quote_column_name(name)}(#{length})" }
-    #    else
-    #      column_names.map { |name| quote_column_name(name) }
-    #  end
-    #end
-
-    #def translate_exception(exception, message)
-    #  return super unless exception.respond_to?(:errno)
-    #
-    #  case exception.errno
-    #    when 1062
-    #      ::ActiveRecord::RecordNotUnique.new(message, exception)
-    #    when 1452
-    #      ::ActiveRecord::InvalidForeignKey.new(message, exception)
-    #    else
-    #      super
-    #  end
-    #end
-
-    private
-
-    #def column_for(table_name, column_name)
-    #  unless column = columns(table_name).find { |c| c.name == column_name.to_s }
-    #    raise "No such column: #{table_name}.#{column_name}"
-    #  end
-    #  column
-    #end
-
-    #def show_create_table(table)
-    #  select_one("SHOW CREATE TABLE #{quote_table_name(table)}")
-    #end
-
-    #def version
-    #  return @version ||= begin
-    #    version = []
-    #    java_connection = jdbc_connection(true)
-    #    if java_connection.is_a?(Java::ComMysqlJdbc::ConnectionImpl)
-    #      version << jdbc_connection.serverMajorVersion
-    #      version << jdbc_connection.serverMinorVersion
-    #      version << jdbc_connection.serverSubMinorVersion
-    #    else
-    #      warn "INFO: failed to resolve MySQL server version using: #{java_connection}"
-    #    end
-    #    version
-    #  end
-    #end
   end
 end
 
@@ -479,7 +304,7 @@ module ActiveRecord
       def jdbc_column_class
         CassandraColumn
       end
-      alias_chained_method :columns, :query_cache, :jdbc_columns
+      #alias_chained_method :columns, :query_cache, :jdbc_columns
 
       # some QUOTING caching :
 

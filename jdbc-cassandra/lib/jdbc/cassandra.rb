@@ -10,6 +10,7 @@ module Jdbc
          slf4j-api-1.7.2.jar
          slf4j-log4j12-1.7.2.jar
          libthrift-0.7.0.jar
+         guava-14.0.1.jar
       }
     end
 
