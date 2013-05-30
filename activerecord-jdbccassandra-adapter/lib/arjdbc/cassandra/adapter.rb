@@ -1,4 +1,11 @@
-class ActiveRecord::ConnectionAdapters::CassandraJdbcConnection < ActiveRecord::ConnectionAdapters::JdbcConnection; end
+class ActiveRecord::ConnectionAdapters::CassandraJdbcConnection < ActiveRecord::ConnectionAdapters::JdbcConnection
+  alias :java_native_database_types :set_native_database_types
+
+  # Cassandra doesn't support doing this the way the Java code tries to.
+  def set_native_database_types
+    @native_types = {}
+  end
+end
 
 module ArJdbc
   module Cassandra
@@ -54,15 +61,6 @@ module ArJdbc
       NATIVE_DATABASE_TYPES
     end
 
-    def modify_types(types)
-      types[:primary_key] = 'uuid PRIMARY KEY'
-      types[:integer] = { :name => 'int' }
-      types[:decimal] = { :name => 'decimal' }
-      types[:timestamp] = { :name => 'timestamp' }
-      types[:datetime][:limit] = nil
-      types
-    end
-
     ADAPTER_NAME = 'Cassandra'.freeze
 
     def adapter_name #:nodoc:
@@ -71,8 +69,8 @@ module ArJdbc
 
     def self.arel2_visitors(config)
       {
-          'Cassandra' => ::Arel::Visitors::Cassandra,
-          'jdbccassandra' => ::Arel::Visitors::Cassandra
+          'cassandra' => ::Arel::Visitors::ToSql,
+          'jdbccassandra' => ::Arel::Visitors::ToSql
       }
     end
 
@@ -165,7 +163,7 @@ module ArJdbc
     # SCHEMA STATEMENTS ========================================
 
     def structure_dump #:nodoc:
-      select_all('DESCRIBE SCHEMA')
+      execute('DESCRIBE SCHEMA')
     end
 
     # based on:
@@ -203,12 +201,12 @@ module ArJdbc
     #  indexes
     #end
 
-    #def jdbc_columns(table_name, name = nil)#:nodoc:
-    #  sql = "SHOW FIELDS FROM #{quote_table_name(table_name)}"
-    #  execute(sql, 'SCHEMA').map do |field|
-    #    ::ActiveRecord::ConnectionAdapters::MysqlColumn.new(field["Field"], field["Default"], field["Type"], field["Null"] == "YES")
-    #  end
-    #end
+    def jdbc_columns(table_name, name = nil)#:nodoc:
+      sql = "DESCRIBE COLUMNFAMILY #{quote_table_name(table_name)}"
+      execute(sql, 'SCHEMA').map do |field|
+        ::ActiveRecord::ConnectionAdapters::CassandraColumn.new(field["Field"], field["Default"], field["Type"], field["Null"] == "YES")
+      end
+    end
 
     # Returns just a table's primary key
     #def primary_key(table)
@@ -473,11 +471,6 @@ module ActiveRecord
     class CassandraAdapter < JdbcAdapter
       include ::ArJdbc::Cassandra
       #include ::ArJdbc::Cassandra::ExplainSupport
-
-      def initialize(*args)
-        super
-        configure_connection
-      end
 
       def jdbc_connection_class(spec)
         ::ArJdbc::Cassandra.jdbc_connection_class

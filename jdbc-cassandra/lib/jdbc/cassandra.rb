@@ -1,16 +1,24 @@
 warn "Jdbc-Cassandra is only for use with JRuby" if (JRUBY_VERSION.nil? rescue true)
 require 'jdbc/cassandra/version'
 
-require 'cassandra-clientutil-1.2.5.jar'
-require 'cassandra-thrift-1.2.5.jar'
-
 module Jdbc
   module Cassandra
+    def self.dependencies
+      %W{cassandra-thrift-#{DRIVER_VERSION}.jar
+         cassandra-clientutil-#{DRIVER_VERSION}.jar
+         log4j-1.2.16.jar
+         slf4j-api-1.7.2.jar
+         slf4j-log4j12-1.7.2.jar
+         libthrift-0.7.0.jar
+      }
+    end
+
     def self.driver_jar
       "cassandra-jdbc-#{DRIVER_VERSION}.jar"
     end
 
-    def self.load_driver(method = :require)
+    def self.load_driver(method = :load)
+      dependencies.each {|dependency| send method, dependency}
       send method, driver_jar
     end
 

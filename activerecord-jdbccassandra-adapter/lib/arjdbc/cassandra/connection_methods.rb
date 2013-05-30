@@ -7,6 +7,7 @@ class ActiveRecord::Base
       rescue LoadError # assuming driver.jar is on the class-path
       end
 
+      config[:host] ||= '127.0.0.1'
       config[:port] ||= 9160
       config[:url] ||= "jdbc:cassandra://#{config[:host]}:#{config[:port]}/#{config[:database]}"
       config[:driver] ||= defined?(::Jdbc::Cassandra.driver_name) ? ::Jdbc::Cassandra.driver_name : 'org.apache.cassandra.cql.jdbc.CassandraDriver'
