@@ -12,10 +12,6 @@ module ArJdbc
       adapter.configure_connection
     end
 
-    #def configure_connection
-    #  execute("SET SQL_AUTO_IS_NULL=0")
-    #end
-
     def self.column_selector
       [ /cassandra/i, lambda { |_,column| column.extend(::ArJdbc::Cassandra::Column) } ]
     end
@@ -37,7 +33,7 @@ module ArJdbc
         :date         => { :name => 'timestamp' },
         :binary       => { :name => 'blob' },
         :boolean      => { :name => 'boolean' },
-        # EXTENDED SUPPORT FOR NATIVE TYPES
+        # Extended support for Cassandra types
         :ascii        => { :name => 'ascii' },
         :bigint       => { :name => 'bigint' },
         :blob         => { :name => 'blob' },
@@ -142,9 +138,17 @@ module ArJdbc
       execute "DROP KEYSPACE #{name}"
     end
 
-    #def create_table(name, options = {}) #:nodoc:
-    #  super(name, {:options => "ENGINE=InnoDB DEFAULT CHARSET=utf8"}.merge(options))
-    #end
+    def create_table(name, options = {}) #:nodoc:
+      td = table_definition
+      td.primary_key(options[:primary_key] || Base.get_primary_key(table_name.to_s.singularize)) unless options[:id] == false
+
+      yield td if block_given?
+
+      create_sql = "CREATE TABLE #{name} ("
+      create_sql << td.to_sql
+      create_sql << ") #{options[:options]}"
+      execute create_sql
+    end
 
     def drop_table(name) #:nodoc:
       execute "DROP TABLE #{name}"
