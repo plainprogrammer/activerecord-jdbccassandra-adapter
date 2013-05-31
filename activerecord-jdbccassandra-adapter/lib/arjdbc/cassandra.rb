@@ -2,12 +2,15 @@ require 'arjdbc/jdbc'
 require 'arjdbc/cassandra/version'
 require 'arjdbc/cassandra/jdbc_connection'
 require 'arjdbc/cassandra/column'
+require 'arjdbc/cassandra/database_statements'
 require 'arjdbc/cassandra/error'
 require 'arjdbc/cassandra/adapter'
 require 'arjdbc/cassandra/connection_methods'
 
 module ArJdbc
   module Cassandra
+    include DatabaseStatements
+
     def self.extended(adapter)
       adapter.configure_connection
     end
@@ -99,17 +102,8 @@ module ArJdbc
       false
     end
 
-    # DATABASE STATEMENTS ======================================
-
-    def exec_insert(sql, name, binds)
-      execute sql, name, binds
-    end
-    alias :exec_update :exec_insert
-    alias :exec_delete :exec_insert
-
-    def select(sql, name = nil, binds = [])
-      query = sql.gsub(/[0-9a-z_-]+\.\*/i, '*')
-      execute query
+    def supports_explain? # :nodoc:
+      false
     end
 
     # SCHEMA STATEMENTS ========================================
