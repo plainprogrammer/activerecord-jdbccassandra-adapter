@@ -107,6 +107,11 @@ module ArJdbc
     alias :exec_update :exec_insert
     alias :exec_delete :exec_insert
 
+    def select(sql, name = nil, binds = [])
+      query = sql.gsub(/[0-9a-z_-]+\.\*/i, '*')
+      execute query
+    end
+
     # SCHEMA STATEMENTS ========================================
 
     def structure_dump #:nodoc:
